@@ -19,7 +19,8 @@ from PIL import Image, ImageFilter
 APP_DIR = Path(__file__).resolve().parent
 DATA_DEFAULT_PATH = APP_DIR / "Dish Guesser.xlsx"
 BLURRED_OUTPUT_DIR = APP_DIR / "Dish Photos Blurred"
-BACKGROUND_PATH = Path("/Users/aminatlawal/Documents/Dish Guesser/Background.png")
+BACKGROUND_PATH = APP_DIR / "Background.png"
+
 
 MAX_POINTS = 10000
 INGREDIENT_PENALTY = 1000
