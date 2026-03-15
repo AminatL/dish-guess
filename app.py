@@ -21,7 +21,6 @@ DATA_DEFAULT_PATH = APP_DIR / "Dish Guesser.xlsx"
 BLURRED_OUTPUT_DIR = APP_DIR / "Dish Photos Blurred"
 BACKGROUND_PATH = APP_DIR / "Background.png"
 
-
 MAX_POINTS = 10000
 INGREDIENT_PENALTY = 1000
 CLUE_PENALTY = 2000
@@ -106,15 +105,12 @@ def generate_blurred_bytes(clear_source: Optional[str], dish_name: str, radius: 
     base_image_bytes = fetch_image_bytes(clear_source)
     if not base_image_bytes:
         return None
-
     try:
         image = Image.open(io.BytesIO(base_image_bytes)).convert("RGB")
         blurred = image.filter(ImageFilter.GaussianBlur(radius))
-
         out = io.BytesIO()
         blurred.save(out, format="JPEG", quality=85)
         blurred_bytes = out.getvalue()
-
         BLURRED_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
         safe_name = re.sub(r"[^a-zA-Z0-9_-]+", "_", dish_name.lower()).strip("_") or "dish"
         output_path = BLURRED_OUTPUT_DIR / f"{safe_name}_blur.jpg"
@@ -158,7 +154,6 @@ def load_data() -> List[Dish]:
                 image_blurred=normalize_source(clean_text(row.get("Image (blurred)"))),
             )
         )
-
     return [d for d in dishes if d.name and d.ingredients]
 
 
@@ -172,7 +167,7 @@ def init_game(dishes: List[Dish]):
     st.session_state.game_over = False
     st.session_state.won = False
     st.session_state.revealed_clues = set()
-    st.session_state.confetti_fired = False  # track so confetti only fires once
+    st.session_state.confetti_fired = False
 
 
 def penalty(points):
@@ -194,22 +189,18 @@ def reveal_clue(clue_key: str):
 def check_guess(guess: str):
     dish = st.session_state.dish
     normalized = guess.strip().lower()
-
     if not normalized:
         st.session_state.message = "Type a dish name to guess."
         return
-
     close = get_close_matches(normalized, [dish.name.lower()], n=1, cutoff=0.6)
     if close:
         st.session_state.message = "Correct! You nailed it."
         st.session_state.won = True
         st.session_state.game_over = True
         return
-
     st.session_state.guesses_left -= 1
     st.session_state.message = "Not quite...try again"
     reveal_next_ingredient()
-
     if st.session_state.guesses_left <= 0:
         st.session_state.game_over = True
         st.session_state.message = "Out of guesses. Better luck next dish."
@@ -220,31 +211,18 @@ def show_confetti():
         """
         <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
         <script>
-            // Create the canvas on the PARENT window, not the iframe
             var myCanvas = window.parent.document.createElement('canvas');
             myCanvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;pointer-events:none;';
             window.parent.document.body.appendChild(myCanvas);
-
-            var myConfetti = window.parent.confetti
-                ? window.parent.confetti
-                : confetti.create(myCanvas, { resize: true, useWorker: true });
-
-            // Override with canvas-scoped instance
-            myConfetti = confetti.create(myCanvas, { resize: true, useWorker: true });
-
-            // Initial burst
+            var myConfetti = confetti.create(myCanvas, { resize: true, useWorker: true });
             myConfetti({ particleCount: 180, spread: 100, origin: { x: 0.5, y: 0 },
                 colors: ['#2f9e44', '#fdba74', '#f6f2ea', '#334155', '#fbbf24', '#86efac'] });
-
-            // Side cannons
             setTimeout(() => {
                 myConfetti({ particleCount: 80, angle: 60, spread: 70, origin: { x: 0, y: 0.3 },
                     colors: ['#2f9e44', '#fdba74', '#fbbf24'] });
                 myConfetti({ particleCount: 80, angle: 120, spread: 70, origin: { x: 1, y: 0.3 },
                     colors: ['#2f9e44', '#fdba74', '#fbbf24'] });
             }, 500);
-
-            // Trickle for 3 seconds
             var end = Date.now() + 3000;
             (function trickle() {
                 myConfetti({ particleCount: 6, angle: 90, spread: 120,
@@ -252,7 +230,7 @@ def show_confetti():
                     colors: ['#2f9e44', '#fdba74', '#f6f2ea', '#fbbf24', '#86efac'],
                     gravity: 0.8, scalar: 0.9 });
                 if (Date.now() < end) requestAnimationFrame(trickle);
-                else myCanvas.remove(); // clean up canvas after animation
+                else myCanvas.remove();
             }());
         </script>
         """,
@@ -263,18 +241,15 @@ def show_confetti():
 def current_dish_image(dish: Dish, show_clear: bool) -> Optional[bytes]:
     clear_source = getattr(dish, "image_clear", None)
     blurred_source = getattr(dish, "image_blurred", None)
-
     if show_clear:
         return fetch_image_bytes(clear_source) or fetch_image_bytes(blurred_source)
-
     blurred = fetch_image_bytes(blurred_source)
     if blurred:
         return blurred
-
     return generate_blurred_bytes(clear_source, dish.name)
 
 
-def standardize_image_bytes(image_bytes: Optional[bytes], width: int = 800, height: int = 270) -> Optional[bytes]:
+def standardize_image_bytes(image_bytes: Optional[bytes], width: int = 700, height: int = 230) -> Optional[bytes]:
     if not image_bytes:
         return None
     try:
@@ -282,7 +257,6 @@ def standardize_image_bytes(image_bytes: Optional[bytes], width: int = 800, heig
         src_w, src_h = image.size
         target_ratio = width / height
         src_ratio = src_w / src_h
-
         if src_ratio > target_ratio:
             new_w = int(src_h * target_ratio)
             left = (src_w - new_w) // 2
@@ -291,7 +265,6 @@ def standardize_image_bytes(image_bytes: Optional[bytes], width: int = 800, heig
             new_h = int(src_w / target_ratio)
             top = (src_h - new_h) // 2
             image = image.crop((0, top, src_w, top + new_h))
-
         image = image.resize((width, height), Image.Resampling.LANCZOS)
         out = io.BytesIO()
         image.save(out, format="JPEG", quality=90)
@@ -331,12 +304,10 @@ def render_country_card(country: Optional[str], flag_source: Optional[str], is_c
         """,
         unsafe_allow_html=True,
     )
-
-
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(page_title="Dish Guessr", page_icon="🍽️", layout="wide")
 
-# ── Background image via base64 ───────────────────────────────────────────────
+# ── Background image ──────────────────────────────────────────────────────────
 bg_base64 = get_base64_image(BACKGROUND_PATH)
 bg_css = (
     f"""
@@ -347,58 +318,70 @@ bg_css = (
         background-attachment: fixed;
         background-repeat: no-repeat;
     }}
-    [data-testid="stHeader"] {{
-        background: rgba(0, 0, 0, 0);
-    }}
-    [data-testid="stToolbar"] {{
-        right: 2rem;
-    }}
+    [data-testid="stHeader"] {{ background: rgba(0,0,0,0); }}
+    [data-testid="stToolbar"] {{ right: 2rem; }}
     """
     if bg_base64
     else ""
 )
 
-css_lines = [
-    "<style>",
-    bg_css,
-    ":root {",
-    "  --bg: #f6f2ea;",
-    "  --ink: #1e1d1a;",
-    "  --accent: #2f9e44;",
-    "  --danger: #d9480f;",
-    "  --panel: #ffffff;",
-    "  --muted: #6f6a62;",
-    "  --shadow: 0 8px 30px rgba(0,0,0,0.08);",
-    "[data-testid='stAppViewContainer'] { color-scheme: light !important; }",
-    "}",
-    "main, .main, section.main { background: transparent !important; }",
-    "[data-testid='stAppViewContainer'] > .main { background: transparent !important; }",
-    ".block-container { max-width: 64% !important; background: transparent !important; }",
-    ".title { font-family: 'Georgia', 'Times New Roman', serif; letter-spacing: 1px; font-size: 95px; margin-bottom: 8px; color: var(--ink); text-align: center; }",
-    ".panel { background: var(--panel); box-shadow: var(--shadow); border-radius: 18px; padding: 20px; border: 2px solid #ece6dc; }",
-    ".panel.description { font-size: 18px; line-height: 1.7; }",
-    ".dish-name { font-family: 'Georgia', 'Times New Roman', serif; font-size: 26px; text-align: center; }",
-    ".ingredients-row { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; margin: 8px 0 16px 0; }",
-    ".ingredient { display: flex; align-items: center; justify-content: center; text-align: center; padding: 2px 4px; font-family: 'Trebuchet MS', sans-serif; font-size: 36px; font-weight: 700; }",
-    ".ingredient.hidden { color: #c9c1b5; }",
-    ".plus { font-size: 24px; font-weight: bold; color: #b7aa9a; }",
-    ".status { font-size: 18px; font-weight: 600; text-align: center; }",
-    ".status.good { color: var(--accent); }",
-    ".status.bad { color: var(--danger); }",
-    ".stat-card { border-radius: 14px; padding: 14px 16px; border: 2px solid #efe7db; background: #fff; box-shadow: var(--shadow); text-align: center; }",
-    ".clue { font-weight: 700; font-size: 22px; color: #334155; text-align: center; }",
-    ".big-number { font-size: 34px; font-weight: 700; color: var(--ink); }",
-    ".result-title { font-family: 'Georgia', 'Times New Roman', serif; font-size: 34px; text-align: center; margin-bottom: 6px; }",
-    ".result-sub { text-align: center; color: var(--muted); margin-bottom: 12px; }",
-    ".fixed-image { width: 52%; margin: 0 auto; border-radius: 16px; overflow: hidden; border: 2px solid #ece6dc; box-shadow: var(--shadow); }",
-    ".clue-sub { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: #92400e; margin-bottom: 8px; text-align: center; font-weight: 700; }",
-    ".clue-card { background: #fff7ed; border: 2px solid #fdba74; }",
-    "button[kind='secondary'] { width: 100%; border-radius: 14px !important; padding: 14px 16px !important; border: 2px solid #fdba74 !important; background: #fff7ed !important; color: #92400e !important; box-shadow: var(--shadow) !important; font-weight: 700 !important; }",
-    "button[kind='secondary']:hover { background: #fed7aa !important; }",
-    "</style>",
-]
+css = f"""
+<style>
+{bg_css}
+:root {{
+  --bg: #f6f2ea;
+  --ink: #1e1d1a;
+  --accent: #2f9e44;
+  --danger: #d9480f;
+  --panel: #ffffff;
+  --muted: #6f6a62;
+  --shadow: 0 8px 30px rgba(0,0,0,0.08);
+}}
+[data-testid='stAppViewContainer'] {{ color-scheme: light !important; }}
+main, .main, section.main {{ background: transparent !important; }}
+[data-testid='stAppViewContainer'] > .main {{ background: transparent !important; }}
+.block-container {{ max-width: 80% !important; background: transparent !important; padding-top: 1rem !important; }}
 
-st.markdown("\n".join(css_lines), unsafe_allow_html=True)
+.title {{
+    font-family: 'Georgia', 'Times New Roman', serif;
+    letter-spacing: 1px;
+    font-size: clamp(42px, 6vw, 68px);
+    margin-bottom: 4px;
+    color: var(--ink);
+    text-align: center;
+}}
+.panel {{ background: var(--panel); box-shadow: var(--shadow); border-radius: 14px; padding: 14px 18px; border: 2px solid #ece6dc; }}
+.panel.description {{ font-size: 15px; line-height: 1.6; }}
+.dish-name {{ font-family: 'Georgia', 'Times New Roman', serif; font-size: clamp(18px, 2.5vw, 24px); text-align: center; }}
+.ingredients-row {{ display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 6px 0 12px 0; }}
+.ingredient {{ display: flex; align-items: center; justify-content: center; text-align: center; padding: 2px 4px; font-family: 'Trebuchet MS', sans-serif; font-size: clamp(20px, 3vw, 28px); font-weight: 700; }}
+.ingredient.hidden {{ color: #c9c1b5; }}
+.plus {{ font-size: clamp(16px, 2vw, 20px); font-weight: bold; color: #b7aa9a; }}
+.status {{ font-size: 16px; font-weight: 600; text-align: center; }}
+.status.good {{ color: var(--accent); }}
+.status.bad {{ color: var(--danger); }}
+.stat-card {{ border-radius: 12px; padding: 10px 12px; border: 2px solid #efe7db; background: #fff; box-shadow: var(--shadow); text-align: center; }}
+.clue {{ font-weight: 700; font-size: clamp(14px, 2vw, 18px); color: #334155; text-align: center; }}
+.big-number {{ font-size: clamp(18px, 2.5vw, 26px); font-weight: 700; color: var(--ink); }}
+.result-title {{ font-family: 'Georgia', 'Times New Roman', serif; font-size: clamp(24px, 3vw, 32px); text-align: center; margin-bottom: 6px; }}
+.result-sub {{ text-align: center; color: var(--muted); margin-bottom: 10px; }}
+.fixed-image {{ width: 55%; margin: 0 auto; border-radius: 14px; overflow: hidden; border: 2px solid #ece6dc; box-shadow: var(--shadow); }}
+.fixed-image img {{ width: 100% !important; height: auto !important; max-height: 38vh !important; object-fit: cover !important; display: block; }}
+.clue-sub {{ font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: #92400e; margin-bottom: 6px; text-align: center; font-weight: 700; }}
+.clue-card {{ background: #fff7ed; border: 2px solid #fdba74; }}
+button[kind='secondary'] {{ width: 100%; border-radius: 12px !important; padding: 10px 14px !important; border: 2px solid #fdba74 !important; background: #fff7ed !important; color: #92400e !important; box-shadow: var(--shadow) !important; font-weight: 700 !important; }}
+button[kind='secondary']:hover {{ background: #fed7aa !important; }}
+
+@media (max-width: 900px) {{
+    .block-container {{ max-width: 95% !important; }}
+    .fixed-image {{ width: 85% !important; }}
+    .stat-card {{ padding: 8px 6px !important; }}
+    .ingredient {{ font-size: clamp(16px, 5vw, 22px) !important; }}
+}}
+</style>
+"""
+
+st.markdown(css, unsafe_allow_html=True)
 st.markdown('<div class="title">Dish Guessr</div>', unsafe_allow_html=True)
 
 if st.session_state.get("last_image_error"):
@@ -430,7 +413,6 @@ with top_right:
         st.rerun()
 
 if reveal_answer:
-    # Fire confetti once on win — guarded by confetti_fired so reruns don't repeat it
     if st.session_state.won and not st.session_state.get("confetti_fired", False):
         show_confetti()
         st.session_state.confetti_fired = True
